@@ -13,9 +13,7 @@ ENV/
 # Outputs and Checkpoints (allow keeping structure)
 checkpoints/*.pth
 checkpoints/*.pt
-outputs/*.png
-outputs/*.csv
-outputs/*.json
+!checkpoints/best_model.pth
 !checkpoints/.gitkeep
 !outputs/.gitkeep
 

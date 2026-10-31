@@ -1,13 +1,10 @@
-
-name: Wildfire UTAE CI-CD
+name: Wildfire Prediction UTAE CI-CD
 
 on:
   push:
     branches: [main]
-
   pull_request:
     branches: [main]
-
   workflow_dispatch:
 
 permissions:
@@ -15,20 +12,19 @@ permissions:
 
 jobs:
 
-  # =====================================
-  # JOB 1: CONTINUOUS INTEGRATION
-  # =====================================
-
+  # =========================================================================
+  # GIAI ĐOẠN 1: CONTINUOUS INTEGRATION (CI) - KIỂM THỬ MÔ HÌNH VÀ PIPELINE
+  # =========================================================================
   test:
-    name: Test Python Application
+    name: Test & Validate AI Pipeline
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v7
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
@@ -38,77 +34,62 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest spaces
+          pip install pytest pytest-cov spaces
 
       - name: Check Python syntax
         run: |
-          python -m compileall -q app.py src
+          python -m compileall -q app.py src tests
 
-      - name: Check dependencies
+      - name: Run unit & integration tests
         run: |
-          python -m pip check
+          python -m pytest tests -v --junitxml=test-results.xml
 
-      - name: Run unit tests
-        shell: bash
-        run: |
-          if [ -d tests ]; then
-            set +e
-            python -m pytest -q tests
-            test_exit_code=$?
-            set -e
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: test-results.xml
 
-            if [ "$test_exit_code" -eq 5 ]; then
-              echo "::warning::No tests were collected. Unit tests need to be implemented."
-            elif [ "$test_exit_code" -ne 0 ]; then
-              exit "$test_exit_code"
-            fi
-          else
-            echo "::warning::Tests directory not found."
-          fi
-
-  # =====================================
-  # JOB 2: BUILD AND PUBLISH DOCKER IMAGE
-  # =====================================
-
+  # =========================================================================
+  # GIAI ĐOẠN 2: CONTINUOUS DELIVERY (CD) - BUILD VÀ PUBLISH DOCKER IMAGE
+  # =========================================================================
   docker:
-    name: Build and Publish Docker Image
+    name: Build & Publish Docker Image to Docker Hub
     runs-on: ubuntu-latest
-
     needs: test
-
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    # Chỉ push image khi push vào nhánh main hoặc kích hoạt workflow_dispatch thủ công
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.MAITHITHUHUONG }}/wildfire-prediction-utae
+          images: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME || 'maithithuhuong' }}/wildfire-prediction-utae
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
-          username: ${{ vars.MAITHITHUHUONG }}
-          password: ${{ secrets.MAITHITHUHUONG }}
+          username: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME || 'maithithuhuong' }}
+          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB_PASSWORD || secrets.MAITHITHUHUONG }}
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

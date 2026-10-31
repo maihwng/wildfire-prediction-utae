@@ -1,14 +1,21 @@
 .git/
 .github/
 .venv/
+venv/
 __pycache__/
-
-data/
-checkpoints/
+*.pyc
+tests/
 outputs/
+.env
 
+# Giữ lại trọng số mô hình tốt nhất
+!checkpoints/
+checkpoints/*
+!checkpoints/best_model.pth
+!checkpoints/.gitkeep
+
+# Loại trừ các tệp dữ liệu huấn luyện dung lượng lớn để giữ image gọn gàng
+data/
 *.npz
-*.pth
 *.h5
 *.tif
-.env

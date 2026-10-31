@@ -957,16 +957,25 @@ body, .gradio-container {
 # =========================================================================
 
 def build_app():
-    # Lấy vụ cháy mặc định đầu tiên: Camp Fire Paradise (2018)
-    initial_fire = CATALOG.fire_labels[0]
-    initial_item = CATALOG.get(initial_fire)
+    # Lấy vụ cháy mặc định đầu tiên: Camp Fire Paradise (2018) nếu có dữ liệu
+    if CATALOG.fire_labels:
+        initial_fire = CATALOG.fire_labels[0]
+        initial_item = CATALOG.get(initial_fire)
 
-    initial_dates = list(initial_item.get("dates_dict", {}).keys())
-    initial_date_val = initial_item.get("active_date", "12/11/2018")
-    initial_next_date = initial_item.get("dates_dict", {}).get(initial_date_val, {}).get("date_pred", "13/11/2018")
+        initial_dates = list(initial_item.get("dates_dict", {}).keys())
+        initial_date_val = initial_item.get("active_date", "12/11/2018")
+        initial_next_date = initial_item.get("dates_dict", {}).get(initial_date_val, {}).get("date_pred", "13/11/2018")
 
-    initial_map, initial_coords = render_map_component(initial_item, initial_date_val, show_pred=False)
-    initial_meta = format_metadata_html(initial_item, coords=initial_coords)
+        initial_map, initial_coords = render_map_component(initial_item, initial_date_val, show_pred=False)
+        initial_meta = format_metadata_html(initial_item, coords=initial_coords)
+    else:
+        initial_fire = "Chưa có dữ liệu vụ cháy"
+        initial_item = None
+        initial_dates = []
+        initial_date_val = ""
+        initial_next_date = ""
+        initial_map = "<div style='color: #8fa3bf; padding: 40px; text-align: center;'>Vui lòng gắn kết (mount) thư mục data/processed_v1 để hiển thị dữ liệu cháy rừng.</div>"
+        initial_meta = "<div class='meta-card'>Chưa có dữ liệu</div>"
 
     with gr.Blocks(title="Bản đồ Dự báo Lan truyền Cháy rừng Miền Tây Hoa Kỳ") as demo:
         # Tiêm mã CSS tuỳ biến
