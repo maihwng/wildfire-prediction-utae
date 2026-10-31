@@ -1,0 +1,14 @@
+.git/
+.github/
+.venv/
+__pycache__/
+
+data/
+checkpoints/
+outputs/
+
+*.npz
+*.pth
+*.h5
+*.tif
+.env

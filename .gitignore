@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.ipynb_checkpoints
+
+# Environment
+.env
+venv/
+env/
+ENV/
+
+# Outputs and Checkpoints (allow keeping structure)
+checkpoints/*.pth
+checkpoints/*.pt
+outputs/*.png
+outputs/*.csv
+outputs/*.json
+!checkpoints/.gitkeep
+!outputs/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+data/
