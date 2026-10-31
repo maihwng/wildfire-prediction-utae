@@ -8,3 +8,6 @@ matplotlib>=3.6.0
 tqdm>=4.64.0
 gradio>=4.0.0
 
+# Image processing and geospatial
+opencv-python-headless>=4.8.0
+pyproj>=3.5.0
