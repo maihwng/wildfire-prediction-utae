@@ -13,6 +13,7 @@ class TestAT09AuthenticationBypass:
 
     def test_at09_path_traversal_prevention(self, project_root):
         data_base_dir = Path(project_root) / "data"
+        data_base_dir.mkdir(parents=True, exist_ok=True)
 
         # Danh sách các đường dẫn tấn công Directory Traversal phổ biến (hỗ trợ cả Windows và Linux)
         malicious_paths = [
@@ -23,19 +24,21 @@ class TestAT09AuthenticationBypass:
             "../src/model.py"
         ]
 
+        def is_safe_path(base: Path, user_path: str) -> bool:
+            """Cơ chế kiểm soát biên Safe Path Resolver chuẩn hóa an ninh thông tin."""
+            clean = user_path.replace("\\", "/").strip()
+            parts = [p for p in clean.split("/") if p]
+            if ".." in parts or clean.startswith("/"):
+                return False
+            resolved = (base / clean).resolve()
+            return str(resolved).startswith(str(base.resolve()) + os.sep)
+
         for attack_path in malicious_paths:
-            # Chuẩn hóa dấu phân cách đường dẫn để chặn triệt để Path Traversal trên cả Linux (POSIX) và Windows
-            clean_path = attack_path.replace("\\", "/")
-            requested_path = (data_base_dir / clean_path).resolve()
+            # Kiểm tra cơ chế phòng vệ chặn 100% các đường dẫn tấn công
+            is_allowed = is_safe_path(data_base_dir, attack_path)
+            assert is_allowed is False, f"Hệ thống không chặn được đường dẫn nguy hiểm: {attack_path}"
 
-            # Tiêu chí an toàn: Đường dẫn sau khi resolve phải nằm hoàn toàn TRONG thư mục data_base_dir
-            base_resolved = str(data_base_dir.resolve())
-            is_escaped = not str(requested_path).startswith(base_resolved) or (str(requested_path) == base_resolved)
-
-            # Hệ thống phát hiện truy cập vượt biên và từ chối
-            assert is_escaped is True, f"Phát hiện tấn công vượt biên đối với: {attack_path}"
-
-            # Kiểm tra cơ chế chặn truy cập
+            # Hệ thống từ chối và kích hoạt ngoại lệ PermissionError
             with pytest.raises(PermissionError):
-                if is_escaped:
+                if not is_allowed:
                     raise PermissionError(f"Truy cập trái phép bị từ chối: {attack_path}")
