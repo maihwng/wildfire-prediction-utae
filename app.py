@@ -355,18 +355,21 @@ def build_leaflet_map_html(
     /* Thanh chuyển đổi 2 Tab phía trên bản đồ */
     #tabs-bar {{
       display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
       padding: 0 2px;
+      align-items: center;
+      flex-wrap: wrap;
     }}
     .tab-btn {{
       flex: 1;
+      min-width: 170px;
       background: #152238;
       border: 1px solid #23354e;
       border-radius: 6px;
       color: #8fa3bf;
-      padding: 10px 16px;
-      font-size: 13.5px;
+      padding: 9px 14px;
+      font-size: 13px;
       font-weight: 500;
       cursor: pointer;
       text-align: center;
@@ -382,63 +385,114 @@ def build_leaflet_map_html(
       border-color: #3b82f6;
       color: #ffffff;
       font-weight: 600;
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
     }}
-    /* Khung bản đồ Leaflet */
+    /* Hộp thanh trượt độ mờ trong tabs-bar */
+    .slider-box {{
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: #152238;
+      border: 1px solid #23354e;
+      border-radius: 6px;
+      padding: 7px 14px;
+      user-select: none;
+    }}
+    .slider-title {{
+      font-size: 12.5px;
+      color: #94a3b8;
+      font-weight: 500;
+    }}
+    .slider-box input[type="range"] {{
+      width: 100px;
+      height: 6px;
+      border-radius: 4px;
+      background: #23354e;
+      outline: none;
+      accent-color: #ef4444;
+      cursor: pointer;
+    }}
+    .slider-pct {{
+      font-size: 12.5px;
+      color: #f87171;
+      font-weight: 700;
+      min-width: 32px;
+    }}
+    /* Khung bản đồ Leaflet phóng to tràn khung */
     #map {{
       flex: 1;
       width: 100%;
       border-radius: 8px;
       border: 1px solid #23354e;
       overflow: hidden;
-      min-height: 480px;
+      min-height: 840px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }}
     /* Hộp Chú thích Legend góc dưới phải */
     .map-legend {{
-      background: rgba(12, 21, 36, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 6px;
-      padding: 10px 14px;
+      background: rgba(12, 21, 36, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
       color: #ffffff;
       font-size: 12px;
-      line-height: 1.8;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
+      line-height: 1.6;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
       user-select: none;
+      max-width: 300px;
     }}
     .legend-row {{
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
-      margin-bottom: 4px;
+      margin-bottom: 7px;
     }}
     .legend-row:last-child {{
       margin-bottom: 0;
     }}
     .legend-box-obs {{
-      width: 14px;
+      width: 18px;
       height: 14px;
-      border: 2px solid #f97316;
-      background: rgba(249, 115, 22, 0.1);
-      border-radius: 2px;
+      border: 2.5px dashed #facc15;
+      background: rgba(250, 204, 21, 0.2);
+      border-radius: 3px;
       display: inline-block;
+      margin-top: 2px;
+      box-shadow: 0 0 5px rgba(250, 204, 21, 0.6);
+      flex-shrink: 0;
     }}
     .legend-box-pred {{
-      width: 14px;
+      width: 18px;
       height: 14px;
-      background: #ea580c;
-      border-radius: 2px;
+      background: #dc2626;
+      border: 1.5px solid #ef4444;
+      border-radius: 3px;
       display: inline-block;
+      margin-top: 2px;
+      box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+      flex-shrink: 0;
+    }}
+    .legend-box-spread {{
+      width: 18px;
+      height: 14px;
+      background: linear-gradient(135deg, rgba(250, 204, 21, 0.35) 40%, #dc2626 41%);
+      border: 1.5px dashed #facc15;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 2px;
+      flex-shrink: 0;
     }}
     .legend-dot-epicenter {{
-      width: 10px;
-      height: 10px;
-      background: #ef4444;
-      border: 2px solid #ffffff;
+      width: 12px;
+      height: 12px;
+      background: #ffffff;
+      border: 3.5px solid #ef4444;
       border-radius: 50%;
       display: inline-block;
-      box-shadow: 0 0 5px #ef4444;
+      margin-top: 3px;
+      box-shadow: 0 0 6px #ef4444;
+      flex-shrink: 0;
     }}
     /* Tùy biến thanh điều khiển Leaflet khớp màu tối */
     .leaflet-bar {{
@@ -474,8 +528,14 @@ def build_leaflet_map_html(
 <body>
   <div id="app-container">
     <div id="tabs-bar">
-      <div id="tab-obs" class="tab-btn" onclick="switchTab('obs')">Vùng cháy ngày t</div>
-      <div id="tab-pred" class="tab-btn" onclick="switchTab('pred')">AI dự đoán (ngày t+1)</div>
+      <div id="tab-obs" class="tab-btn" onclick="switchTab('obs')">🟡 Vùng cháy ngày t (Quan sát)</div>
+      <div id="tab-pred" class="tab-btn" onclick="switchTab('pred')">🔴 AI dự đoán (ngày t+1)</div>
+      <div id="tab-overlay" class="tab-btn" onclick="switchTab('overlay')">⚡ Chồng lớp so sánh (Overlay)</div>
+      <div class="slider-box" id="slider-box">
+        <span class="slider-title">Độ mờ AI:</span>
+        <input type="range" id="opacity-slider" min="0.05" max="0.95" step="0.05" value="0.55" oninput="setPredOpacity(this.value)">
+        <span id="opacity-val" class="slider-pct">55%</span>
+      </div>
     </div>
     <div id="map"></div>
   </div>
@@ -506,9 +566,36 @@ def build_leaflet_map_html(
     legend.onAdd = function() {{
       var div = L.DomUtil.create('div', 'map-legend');
       div.innerHTML = `
-        <div class="legend-row"><span class="legend-box-obs"></span> Vùng cháy quan sát</div>
-        <div class="legend-row"><span class="legend-box-pred"></span> Vùng cháy AI dự đoán</div>
-        <div class="legend-row"><span class="legend-dot-epicenter"></span> Tâm cháy</div>
+        <div style="font-weight: 700; font-size: 12.5px; margin-bottom: 8px; color: #f8fafc; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 5px;">
+          🔍 Chú giải phân biệt chồng lớp
+        </div>
+        <div class="legend-row">
+          <span class="legend-box-obs"></span>
+          <div>
+            <strong>Vùng cháy quan sát (Ngày t)</strong>
+            <div style="color: #94a3b8; font-size: 11px;">Ranh giới thực tế viền vàng nét đứt</div>
+          </div>
+        </div>
+        <div class="legend-row">
+          <span class="legend-box-pred"></span>
+          <div>
+            <strong>Vùng cháy AI dự đoán (Ngày t+1)</strong>
+            <div style="color: #94a3b8; font-size: 11px;">Mô hình U-TAE dự báo khối đỏ lửa</div>
+          </div>
+        </div>
+        <div class="legend-row">
+          <span class="legend-box-spread"></span>
+          <div>
+            <strong style="color: #fb7185;">🔥 Khu vực cháy lan mới</strong>
+            <div style="color: #94a3b8; font-size: 11px;">Phần đỏ mở rộng ra ngoài viền vàng</div>
+          </div>
+        </div>
+        <div class="legend-row">
+          <span class="legend-dot-epicenter"></span>
+          <div style="margin-top: 1px;">
+            <strong>Tâm cháy chính</strong>
+          </div>
+        </div>
       `;
       return div;
     }};
@@ -520,31 +607,59 @@ def build_leaflet_map_html(
 
     var obsPolygons = {obs_json};
     obsPolygons.forEach(function(pts) {{
+      // 1. Lớp viền đen shadow phía dưới để tương phản trên mọi địa hình
       L.polygon(pts, {{
-        color: '#f97316',
-        weight: 2.6,
-        fillColor: '#ea580c',
-        fillOpacity: 0.12
+        color: '#000000',
+        weight: 5.5,
+        opacity: 0.85,
+        fill: false
       }}).addTo(obsLayerGroup);
+
+      // 2. Lớp viền vàng huỳnh quang nét đứt rực rỡ đại diện cho ngày t
+      var p = L.polygon(pts, {{
+        color: '#facc15',
+        weight: 3.2,
+        dashArray: '8, 6',
+        opacity: 1.0,
+        fillColor: '#fef08a',
+        fillOpacity: 0.08
+      }}).addTo(obsLayerGroup);
+      p.bindTooltip("🟡 Vùng cháy quan sát (Ngày t)", {{ sticky: true }});
     }});
 
+    var predLayerObjects = [];
     var predPolygons = {pred_json};
     predPolygons.forEach(function(pts) {{
-      L.polygon(pts, {{
-        color: '#ff5400',
-        weight: 2,
-        fillColor: '#ea580c',
-        fillOpacity: 0.70
+      var p = L.polygon(pts, {{
+        color: '#ef4444',
+        weight: 2.2,
+        fillColor: '#dc2626',
+        fillOpacity: 0.55
       }}).addTo(predLayerGroup);
+      p.bindTooltip("🔴 Vùng cháy AI dự đoán (Ngày t+1)", {{ sticky: true }});
+      predLayerObjects.push(p);
     }});
 
+    function setPredOpacity(val) {{
+      var v = parseFloat(val);
+      var pct = Math.round(v * 100);
+      var elem = document.getElementById('opacity-val');
+      if (elem) elem.innerText = pct + '%';
+      predLayerObjects.forEach(function(p) {{
+        p.setStyle({{
+          fillOpacity: v,
+          opacity: Math.min(1.0, v + 0.35)
+        }});
+      }});
+    }}
+
     L.circleMarker([{epicenter_lat}, {epicenter_lon}], {{
-      radius: 7,
-      fillColor: '#ef4444',
-      color: '#ffffff',
-      weight: 2.5,
+      radius: 8,
+      fillColor: '#ffffff',
+      color: '#ef4444',
+      weight: 3.5,
       fillOpacity: 1.0
-    }}).addTo(epicenterLayerGroup);
+    }}).addTo(epicenterLayerGroup).bindTooltip("📍 Tâm cháy chính", {{ sticky: true }});
 
     // Tự động căn chỉnh tầm nhìn vừa vặn và bao quát chính xác toàn bộ vùng cháy
     var allPolys = obsPolygons.concat(predPolygons);
@@ -557,33 +672,41 @@ def build_leaflet_map_html(
       }});
       bounds.extend([{epicenter_lat}, {epicenter_lon}]);
       if (bounds.isValid()) {{
-        map.fitBounds(bounds, {{ padding: [55, 55], maxZoom: 13 }});
+        map.fitBounds(bounds, {{ padding: [25, 25], maxZoom: 14 }});
       }}
     }}
+    setTimeout(function() {{
+      map.invalidateSize();
+    }}, 250);
 
     var showPredInitial = {initial_show_pred_js};
     if (showPredInitial) {{
-      predLayerGroup.addTo(map);
-      document.getElementById('tab-pred').classList.add('active');
-      document.getElementById('tab-obs').classList.remove('active');
+      switchTab('overlay');
     }} else {{
-      document.getElementById('tab-obs').classList.add('active');
-      document.getElementById('tab-pred').classList.remove('active');
+      switchTab('obs');
     }}
 
     function switchTab(mode) {{
+      document.getElementById('tab-obs').classList.remove('active');
+      document.getElementById('tab-pred').classList.remove('active');
+      document.getElementById('tab-overlay').classList.remove('active');
+      var sliderBox = document.getElementById('slider-box');
+
       if (mode === 'obs') {{
-        if (map.hasLayer(predLayerGroup)) {{
-          map.removeLayer(predLayerGroup);
-        }}
+        if (!map.hasLayer(obsLayerGroup)) map.addLayer(obsLayerGroup);
+        if (map.hasLayer(predLayerGroup)) map.removeLayer(predLayerGroup);
         document.getElementById('tab-obs').classList.add('active');
-        document.getElementById('tab-pred').classList.remove('active');
-      }} else {{
-        if (!map.hasLayer(predLayerGroup)) {{
-          map.addLayer(predLayerGroup);
-        }}
+        if (sliderBox) {{ sliderBox.style.opacity = '0.35'; sliderBox.style.pointerEvents = 'none'; }}
+      }} else if (mode === 'pred') {{
+        if (map.hasLayer(obsLayerGroup)) map.removeLayer(obsLayerGroup);
+        if (!map.hasLayer(predLayerGroup)) map.addLayer(predLayerGroup);
         document.getElementById('tab-pred').classList.add('active');
-        document.getElementById('tab-obs').classList.remove('active');
+        if (sliderBox) {{ sliderBox.style.opacity = '1.0'; sliderBox.style.pointerEvents = 'auto'; }}
+      }} else if (mode === 'overlay') {{
+        if (!map.hasLayer(obsLayerGroup)) map.addLayer(obsLayerGroup);
+        if (!map.hasLayer(predLayerGroup)) map.addLayer(predLayerGroup);
+        document.getElementById('tab-overlay').classList.add('active');
+        if (sliderBox) {{ sliderBox.style.opacity = '1.0'; sliderBox.style.pointerEvents = 'auto'; }}
       }}
     }}
   </script>
@@ -650,7 +773,7 @@ def render_map_component(
     iframe_markup = f"""
     <iframe 
         srcdoc="{escaped_srcdoc}" 
-        style="width: 100%; height: 560px; border: none; border-radius: 8px; display: block;"
+        style="width: 100%; height: calc(100vh - 95px); min-height: 850px; border: none; border-radius: 8px; display: block;"
         allowfullscreen>
     </iframe>
     """
@@ -738,10 +861,18 @@ def run_prediction(fire_label: str, date_obs_str: str) -> Tuple[str, str]:
         s = date_entry["input_start"]
         e = date_entry["input_end"] + 1  # 5 time steps (T=5)
 
-        dyn_cont = z["dyn_cont"][s:e]
-        fire = z["fire"][s:e, np.newaxis]
-        w_mask = z["weather_mask"][s:e, np.newaxis]
-        v_mask = z["vegetation_mask"][s:e, np.newaxis]
+        dyn_cont = z["dyn_cont"][s:e].astype(np.float32)
+        fire = z["fire"][s:e, np.newaxis].astype(np.float32)
+        w_mask = z["weather_mask"][s:e, np.newaxis].astype(np.float32)
+        v_mask = z["vegetation_mask"][s:e, np.newaxis].astype(np.float32)
+
+        # Tiền xử lý tận gốc:
+        # 1. Zero-masking tại các pixel thời tiết bị khuyết -> đưa về mean (0.0)
+        dyn_cont[:, 0:11] *= w_mask
+        # 2. Zero-masking tại các pixel thảm thực vật bị khuyết -> đưa về mean (0.0)
+        dyn_cont[:, 11:13] *= v_mask
+        # 3. Triệt tiêu ngoại lai cực đoan (Outlier suppression) trên kênh phát xạ FRP
+        dyn_cont[:, 13] = np.clip(dyn_cont[:, 13], -0.02511, 64.0)
 
         # Ghép 17 kênh đầu vào
         c0_12 = dyn_cont[:, 0:13]
@@ -761,16 +892,11 @@ def run_prediction(fire_label: str, date_obs_str: str) -> Tuple[str, str]:
         probs = torch.sigmoid(logits)[0, 0].cpu().numpy()
 
     # 3. Tính toán mặt nạ dự đoán lan truyền trực tiếp từ đầu ra của U-TAE
-    p_max = float(probs.max())
-    if p_max > 0.505:
-        # Ngưỡng động trích xuất vùng cháy lan mà mô hình U-TAE kích hoạt mạnh nhất
-        cutoff = 0.50 + 0.35 * (p_max - 0.50)
-        pred_binary = (probs >= cutoff).astype(np.uint8)
-    else:
-        pred_binary = (probs > 0.50).astype(np.uint8)
+    # Sử dụng ngưỡng chuẩn xác 0.5005 để giữ nguyên vẹn toàn bộ vùng lửa duy trì và cháy lan mới (không cắt xén mất dải lửa)
+    pred_binary = (probs >= 0.5005).astype(np.uint8)
 
     # 4. Trích xuất đa giác dự đoán từ kết quả U-TAE
-    pred_polygons = extract_polygons(pred_binary, item["tx"], item["ty"], sigma=1.3, threshold=0.08)
+    pred_polygons = extract_polygons(pred_binary, item["tx"], item["ty"], sigma=1.0, threshold=0.1)
 
     # 5. Cập nhật bản đồ hiển thị kết quả AI dự đoán và tọa độ tâm chuẩn xác
     map_html, real_coords = render_map_component(item, date_obs_str, pred_polygons=pred_polygons, show_pred=True)
@@ -783,14 +909,32 @@ def run_prediction(fire_label: str, date_obs_str: str) -> Tuple[str, str]:
 # =========================================================================
 
 CUSTOM_CSS = """
-/* Toàn bộ nền trang web màu đen xanh hải quân sâu */
-body, .gradio-container {
+/* Toàn bộ nền trang web màu đen xanh hải quân sâu tràn màn hình (Full Web) */
+body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
     background-color: #0c1424 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
     color: #ffffff !important;
-    max-width: 1280px !important;
-    margin: 0 auto !important;
-    padding: 16px 20px !important;
+    overflow-x: hidden !important;
+}
+
+.gradio-container {
+    background-color: #0c1424 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    color: #ffffff !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 6px 14px 10px 4px !important; /* Thanh bên trái ép sát vào mép web */
+}
+
+.main-app-row {
+    margin: 0 !important;
+    gap: 12px !important;
+    width: 100% !important;
+    align-items: stretch !important;
 }
 
 /* Phần Tiêu đề Header & Huy hiệu mtthwng */
@@ -798,7 +942,7 @@ body, .gradio-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     padding: 0 4px;
 }
 .header-left h1 {
@@ -838,13 +982,14 @@ body, .gradio-container {
     letter-spacing: -0.2px;
 }
 
-/* Thẻ khung điều khiển bên trái */
+/* Thẻ khung điều khiển bên trái sát mép */
 .control-card {
     background-color: #152238 !important;
     border: 1px solid #23354e !important;
     border-radius: 8px !important;
-    padding: 22px !important;
+    padding: 16px 14px !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    margin-left: 0 !important;
 }
 
 /* Biểu tượng bánh răng góc trên thẻ */
@@ -977,7 +1122,7 @@ def build_app():
         initial_map = "<div style='color: #8fa3bf; padding: 40px; text-align: center;'>Vui lòng gắn kết (mount) thư mục data/processed_v1 để hiển thị dữ liệu cháy rừng.</div>"
         initial_meta = "<div class='meta-card'>Chưa có dữ liệu</div>"
 
-    with gr.Blocks(title="Bản đồ Dự báo Lan truyền Cháy rừng Miền Tây Hoa Kỳ") as demo:
+    with gr.Blocks(title="Bản đồ Dự báo Lan truyền Cháy rừng Miền Tây Hoa Kỳ", fill_width=True) as demo:
         # Tiêm mã CSS tuỳ biến
         gr.HTML(f"<style>{CUSTOM_CSS}</style>")
 
@@ -999,10 +1144,10 @@ def build_app():
             """
         )
 
-        # Bố cục 2 cột chính
-        with gr.Row():
-            # Cột trái: Khung điều khiển
-            with gr.Column(scale=4, elem_classes=["control-card"]):
+        # Bố cục 2 cột chính: Cột trái điều khiển sát mép, Cột phải bản đồ vệ tinh mở rộng tối đa (Full Web)
+        with gr.Row(elem_classes=["main-app-row"]):
+            # Cột trái: Khung điều khiển gọn gàng sát mép trái
+            with gr.Column(scale=1, min_width=290, elem_classes=["control-card"]):
                 gr.HTML('<div class="gear-header">⚙</div>')
 
                 dropdown_fire = gr.Dropdown(
@@ -1035,8 +1180,8 @@ def build_app():
 
                 meta_output = gr.HTML(value=initial_meta)
 
-            # Cột phải: Bản đồ tương tác Leaflet
-            with gr.Column(scale=6, elem_classes=["map-column"]):
+            # Cột phải: Bản đồ vệ tinh toàn màn hình phóng to (Full Web)
+            with gr.Column(scale=5, elem_classes=["map-column"]):
                 map_output = gr.HTML(value=initial_map)
 
         # Gán sự kiện tương tác

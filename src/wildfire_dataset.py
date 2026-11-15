@@ -63,6 +63,9 @@ class WildfireDataset(Dataset):
         max_samples: Optional[int] = None,
         filter_active_fire: bool = False,
         random_seed: int = 42,
+        clean_root: bool = True,
+        frp_clip_max: float = 64.0,
+        include_static: bool = False,
     ):
         """
         Args:
@@ -72,12 +75,18 @@ class WildfireDataset(Dataset):
             max_samples: Optional limit on total samples (useful for quick experiments/debugging).
             filter_active_fire: If True, keep only sequences that contain active fire pixels.
             random_seed: Random seed for optional sampling.
+            clean_root: If True, enforce root preprocessing (zero-masking invalid pixels, outlier stabilization).
+            frp_clip_max: Upper bound for clipping z-scored log1p_frp (default 64.0, ~95th percentile of fire pixels).
+            include_static: If True, append 4 static terrain channels (elevation, slope, aspect sin/cos) -> 21 channels.
         """
         super().__init__()
         self.root_dir = root_dir
         self.split = split
         self.split_dir = os.path.join(root_dir, split)
         self.index_path = os.path.join(self.split_dir, "index.csv")
+        self.clean_root = clean_root
+        self.frp_clip_max = frp_clip_max
+        self.include_static = include_static
 
         if not os.path.exists(self.index_path):
             raise FileNotFoundError(f"Index file not found: {self.index_path}")
@@ -98,7 +107,7 @@ class WildfireDataset(Dataset):
         self._file_cache: OrderedDict[str, Dict[str, np.ndarray]] = OrderedDict()
 
     def _get_file_data(self, filename: str) -> Dict[str, np.ndarray]:
-        """Fetch file arrays with LRU cache."""
+        """Fetch file arrays with LRU cache and perform root preprocessing."""
         if filename in self._file_cache:
             self._file_cache.move_to_end(filename)
             return self._file_cache[filename]
@@ -109,12 +118,51 @@ class WildfireDataset(Dataset):
 
         # Load npz archive into memory
         with np.load(filepath) as npz:
-            data = {
-                "dyn_cont": np.array(npz["dyn_cont"], dtype=np.float32),
-                "fire": np.array(npz["fire"], dtype=np.float32),
-                "weather_mask": np.array(npz["weather_mask"], dtype=np.float32),
-                "vegetation_mask": np.array(npz["vegetation_mask"], dtype=np.float32),
-            }
+            dyn_cont = np.array(npz["dyn_cont"], dtype=np.float32)
+            fire = np.array(npz["fire"], dtype=np.float32)
+            weather_mask = np.array(npz["weather_mask"], dtype=np.float32)
+            vegetation_mask = np.array(npz["vegetation_mask"], dtype=np.float32)
+            static_cont = np.array(npz["static_cont"], dtype=np.float32) if "static_cont" in npz else None
+
+        if self.clean_root:
+            # 1. Zero-masking invalid weather pixels (dyn_cont channels 0..10: pr through erc)
+            # Directly zeros out any missing pixels so they match the standardized mean (0.0)
+            wm = weather_mask[:, np.newaxis, :, :]
+            dyn_cont[:, 0:11, :, :] = dyn_cont[:, 0:11, :, :] * wm
+
+            # 2. Zero-masking invalid vegetation pixels (dyn_cont channels 11, 12: NDVI, EVI)
+            vm = vegetation_mask[:, np.newaxis, :, :]
+            dyn_cont[:, 11:13, :, :] = dyn_cont[:, 11:13, :, :] * vm
+
+            # 3. Outlier suppression & stabilization on log1p_frp (dyn_cont channel 13)
+            # Baseline unburned FRP is -0.02511. Any noise at unburned pixels is wiped.
+            # Active burning pixels are capped to frp_clip_max (default 64.0, ~95th percentile)
+            dyn_cont[:, 13, :, :] = np.clip(dyn_cont[:, 13, :, :], -0.02511, self.frp_clip_max)
+
+        # 4. Pre-assemble 17 contiguous channels directly in cache for O(1) slice access
+        c_0_to_12 = dyn_cont[:, 0:13, :, :]
+        c_13 = fire[:, np.newaxis, :, :]
+        c_14 = dyn_cont[:, 13:14, :, :]
+        c_15 = weather_mask[:, np.newaxis, :, :]
+        c_16 = vegetation_mask[:, np.newaxis, :, :]
+
+        channels = [c_0_to_12, c_13, c_14, c_15, c_16]
+
+        if self.include_static and static_cont is not None:
+            # Broadcast 4 static terrain channels across T time steps: (T, 4, H, W)
+            t_steps = dyn_cont.shape[0]
+            static_tiled = np.broadcast_to(
+                static_cont[np.newaxis, :, :, :],
+                (t_steps, static_cont.shape[0], static_cont.shape[1], static_cont.shape[2])
+            ).copy()
+            channels.append(static_tiled)
+
+        full_channels = np.concatenate(channels, axis=1).astype(np.float32)
+
+        data = {
+            "full_channels": full_channels,
+            "fire": fire,
+        }
 
         if len(self._file_cache) >= self.cache_size:
             self._file_cache.popitem(last=False)
@@ -135,25 +183,8 @@ class WildfireDataset(Dataset):
         target_idx = int(row["target"])
         last_day_idx = int(row["input_end"])
 
-        # Extract slices: (T=5, 14, 128, 128)
-        dyn_cont = file_data["dyn_cont"][start:end]
-        fire = file_data["fire"][start:end, np.newaxis, :, :]              # (T=5, 1, 128, 128)
-        weather_mask = file_data["weather_mask"][start:end, np.newaxis, :, :]  # (T=5, 1, 128, 128)
-        veg_mask = file_data["vegetation_mask"][start:end, np.newaxis, :, :]   # (T=5, 1, 128, 128)
-
-        # Build 17 channels:
-        # 0..12: dyn_cont[:, 0:13] (pr through EVI)
-        # 13: fire mask
-        # 14: dyn_cont[:, 13:14] (log1p_frp)
-        # 15: weather_mask
-        # 16: vegetation_mask
-        c_0_to_12 = dyn_cont[:, 0:13, :, :]
-        c_13 = fire
-        c_14 = dyn_cont[:, 13:14, :, :]
-        c_15 = weather_mask
-        c_16 = veg_mask
-
-        x_np = np.concatenate([c_0_to_12, c_13, c_14, c_15, c_16], axis=1)  # (5, 17, 128, 128)
+        # Slice pre-assembled 17 (or 21) channels in O(1) time
+        x_np = file_data["full_channels"][start:end]
 
         # Target mask at day 5: (1, 128, 128)
         y_np = file_data["fire"][target_idx:target_idx + 1, :, :]
@@ -187,6 +218,9 @@ def get_dataloader(
     max_samples: Optional[int] = None,
     filter_active_fire: bool = False,
     pin_memory: bool = True,
+    clean_root: bool = True,
+    frp_clip_max: float = 64.0,
+    include_static: bool = False,
 ) -> DataLoader:
     """
     Factory function to build DataLoader for train, val, or test splits.
@@ -200,6 +234,9 @@ def get_dataloader(
         cache_size=cache_size,
         max_samples=max_samples,
         filter_active_fire=filter_active_fire,
+        clean_root=clean_root,
+        frp_clip_max=frp_clip_max,
+        include_static=include_static,
     )
 
     use_cuda = torch.cuda.is_available()

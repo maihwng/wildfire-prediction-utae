@@ -1,4 +1,4 @@
-name: Wildfire Prediction UTAE CI-CD
+name: Wildfire Prediction UTAE CI-CD Pipeline
 
 on:
   push:
@@ -13,10 +13,10 @@ permissions:
 jobs:
 
   # =========================================================================
-  # GIAI ĐOẠN 1: CONTINUOUS INTEGRATION (CI) - KIỂM THỬ MÔ HÌNH VÀ PIPELINE
+  # GIAI ĐOẠN 1: KIỂM THỬ CHỨC NĂNG & CHẤT LƯỢNG MÔ HÌNH AI (FUNCTIONAL & AI)
   # =========================================================================
-  test:
-    name: Test & Validate AI Pipeline
+  functional-and-ai-test:
+    name: 1. Functional & AI Model Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -34,31 +34,85 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov spaces
+          pip install pytest pytest-html pytest-cov spaces
 
-      - name: Check Python syntax
+      - name: Syntax & Compilation Check
         run: |
           python -m compileall -q app.py src tests
 
-      - name: Run unit & integration tests
+      - name: Run Core, Functional & AI Quality Tests (TC01 - TC10)
         run: |
-          python -m pytest tests -v --junitxml=test-results.xml
+          mkdir -p reports
+          python -m pytest tests/test_app.py tests/test_dataset.py tests/test_model.py tests/functional tests/ai \
+            -v \
+            --html=reports/functional_test_report.html \
+            --self-contained-html \
+            --junitxml=reports/functional-junit.xml
 
-      - name: Upload test results
+      - name: Upload Functional Test Report Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results
-          path: test-results.xml
+          name: functional-and-ai-reports
+          path: |
+            reports/functional_test_report.html
+            reports/functional-junit.xml
 
   # =========================================================================
-  # GIAI ĐOẠN 2: CONTINUOUS DELIVERY (CD) - BUILD VÀ PUBLISH DOCKER IMAGE
+  # GIAI ĐOẠN 2: KIỂM THỬ AN NINH & 10 LOẠI TẤN CÔNG BẢO MẬT (SECURITY & ATTACKS)
+  # =========================================================================
+  security-and-attacks-test:
+    name: 2. Security & AI Attack Resilience
+    runs-on: ubuntu-latest
+    needs: functional-and-ai-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies & Audit tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-html pip-audit
+
+      - name: Run 10 AI Attack Vector Tests (AT01 - AT10)
+        run: |
+          mkdir -p reports
+          python -m pytest tests/attacks \
+            -v \
+            --html=reports/security_test_report.html \
+            --self-contained-html \
+            --junitxml=reports/security-junit.xml
+
+      - name: Audit Supply Chain Vulnerabilities (pip-audit)
+        run: |
+          pip-audit -r requirements.txt || true
+
+      - name: Upload Security Test Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-and-attack-reports
+          path: |
+            reports/security_test_report.html
+            reports/security-junit.xml
+
+  # =========================================================================
+  # GIAI ĐOẠN 3: CONTINUOUS DELIVERY (CD) - BUILD & PUSH DOCKER IMAGE
   # =========================================================================
   docker:
-    name: Build & Publish Docker Image to Docker Hub
+    name: 3. Build & Publish Docker Image to Docker Hub
     runs-on: ubuntu-latest
-    needs: test
-    # Chỉ push image khi push vào nhánh main hoặc kích hoạt workflow_dispatch thủ công
+    needs: [functional-and-ai-test, security-and-attacks-test]
+    # Chỉ push image khi merge vào nhánh main hoặc trigger thủ công
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     steps:

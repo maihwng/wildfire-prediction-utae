@@ -69,8 +69,8 @@ def run_batch_sanity_check(batch_size: int = 4):
     assert y.dtype == torch.float32, f"Expected float32 for y, got {y.dtype}"
     print(f"  ✓ Dimensions and dtypes are verified.")
 
-    # [3/6] Check for NaN and Inf
-    print(f"\n[3/6] Checking for NaN and Inf values in inputs and targets...")
+    # [3/6] Check for NaN, Inf, and Root Preprocessing Sanitization
+    print(f"\n[3/6] Checking for NaN, Inf, and Root Preprocessing sanitization...")
     has_nan_x = torch.isnan(x).any().item()
     has_inf_x = torch.isinf(x).any().item()
     has_nan_y = torch.isnan(y).any().item()
@@ -81,6 +81,35 @@ def run_batch_sanity_check(batch_size: int = 4):
     assert not has_nan_y, "NaN detected in target tensor y!"
     assert not has_inf_y, "Inf detected in target tensor y!"
     print(f"  ✓ No NaN or Inf detected in input or target.")
+
+    # Check Root Preprocessing:
+    # A. Check missing weather pixels are zeroed
+    wm = x[:, :, 15:16, :, :]  # (B, T, 1, H, W)
+    weather_channels = x[:, :, 0:11, :, :]
+    if (wm == 0).any():
+        masked_weather_vals = weather_channels[wm.expand(-1, -1, 11, -1, -1) == 0]
+        assert torch.all(masked_weather_vals == 0.0), "Leaked non-zero weather values where weather_mask == 0!"
+        print(f"  ✓ Root Preprocessing: Verified zero-masking on missing weather pixels.")
+    else:
+        print(f"  ✓ Root Preprocessing: All weather pixels in batch are valid (mask == 1).")
+
+    # B. Check missing vegetation pixels are zeroed
+    vm = x[:, :, 16:17, :, :]  # (B, T, 1, H, W)
+    veg_channels = x[:, :, 11:13, :, :]
+    if (vm == 0).any():
+        masked_veg_vals = veg_channels[vm.expand(-1, -1, 2, -1, -1) == 0]
+        assert torch.all(masked_veg_vals == 0.0), "Leaked non-zero vegetation values where veg_mask == 0!"
+        print(f"  ✓ Root Preprocessing: Verified zero-masking on missing vegetation pixels.")
+    else:
+        print(f"  ✓ Root Preprocessing: All vegetation pixels in batch are valid (mask == 1).")
+
+    # C. Check FRP channel is properly bounded (clamped to <= 64.0)
+    frp_channel = x[:, :, 14, :, :]
+    max_frp = frp_channel.max().item()
+    min_frp = frp_channel.min().item()
+    assert max_frp <= 64.0001, f"FRP outlier spike detected! max={max_frp} > 64.0"
+    assert min_frp >= -0.026, f"FRP below baseline detected! min={min_frp} < -0.026"
+    print(f"  ✓ Root Preprocessing: FRP channel bounded safely in [{min_frp:.4f}, {max_frp:.4f}] (no +103 spikes).")
 
     # [4/6] Forward pass
     print(f"\n[4/6] Initializing WildfireUTAE and testing forward pass...")
