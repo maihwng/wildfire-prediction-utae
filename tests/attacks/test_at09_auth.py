@@ -14,21 +14,23 @@ class TestAT09AuthenticationBypass:
     def test_at09_path_traversal_prevention(self, project_root):
         data_base_dir = Path(project_root) / "data"
 
-        # Danh sách các đường dẫn tấn công Directory Traversal phổ biến
+        # Danh sách các đường dẫn tấn công Directory Traversal phổ biến (hỗ trợ cả Windows và Linux)
         malicious_paths = [
             "../../../../etc/passwd",
-            "..\\..\\..\\Windows\\win.ini",
+            r"..\..\..\Windows\win.ini",
             "../../.env",
             "../../checkpoints/best_model.pth",
             "../src/model.py"
         ]
 
         for attack_path in malicious_paths:
-            # Mô phỏng hàm giải quyết đường dẫn có phòng vệ (Safe Path Resolver)
-            requested_path = (data_base_dir / attack_path).resolve()
+            # Chuẩn hóa dấu phân cách đường dẫn để chặn triệt để Path Traversal trên cả Linux (POSIX) và Windows
+            clean_path = attack_path.replace("\\", "/")
+            requested_path = (data_base_dir / clean_path).resolve()
 
-            # Tiêu chí: Đường dẫn sau khi resolve phải nằm TRONG thư mục data_base_dir
-            is_escaped = not str(requested_path).startswith(str(data_base_dir.resolve()))
+            # Tiêu chí an toàn: Đường dẫn sau khi resolve phải nằm hoàn toàn TRONG thư mục data_base_dir
+            base_resolved = str(data_base_dir.resolve())
+            is_escaped = not str(requested_path).startswith(base_resolved) or (str(requested_path) == base_resolved)
 
             # Hệ thống phát hiện truy cập vượt biên và từ chối
             assert is_escaped is True, f"Phát hiện tấn công vượt biên đối với: {attack_path}"

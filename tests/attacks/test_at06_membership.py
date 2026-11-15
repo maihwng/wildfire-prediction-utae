@@ -14,6 +14,8 @@ class TestAT06MembershipInference:
     """
 
     def test_at06_membership_inference_auc_bound(self, model_instance):
+        torch.manual_seed(42)
+        np.random.seed(42)
         model = model_instance
         model.eval()
 

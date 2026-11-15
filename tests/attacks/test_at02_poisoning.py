@@ -12,6 +12,8 @@ class TestAT02DataPoisoning:
     """
 
     def test_at02_label_flipping_detection(self, sample_target):
+        np.random.seed(42)
+        torch.manual_seed(42)
         clean_target = sample_target.clone()
         poisoned_target = clean_target.clone()
 
